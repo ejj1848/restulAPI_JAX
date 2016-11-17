@@ -5,8 +5,13 @@ import Model.Message;
 import Services.MessageService;
 
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import javax.xml.stream.events.Comment;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
 /**
@@ -14,7 +19,7 @@ import java.util.List;
  */
 @Path("/messages")
 @Consumes(MediaType.APPLICATION_JSON)
-@Produces(MediaType.APPLICATION_JSON)
+@Produces(value = {MediaType.APPLICATION_JSON, MediaType.TEXT_XML})
 
 public class MessageResource {
 
@@ -32,8 +37,14 @@ public class MessageResource {
     }
 
     @POST
-    public Message addMessage(Message message){
-       return messageService.addMessage(message);
+    public Response addMessage(Message message, @Context UriInfo uriInfo) throws URISyntaxException {
+        Message newMessage = messageService.addMessage(message);
+        String newId = String.valueOf(newMessage.getId());
+        URI uri = uriInfo.getAbsolutePathBuilder().path(newId).build();
+        return Response.created(uri)
+                .entity(newMessage)
+                .build();
+       //return messageService.addMessage(message);
     }
 
     @PUT
@@ -51,10 +62,41 @@ public class MessageResource {
 
     @GET
     @Path("/{messageId}")
-    public Message getMessageById(@PathParam("messageId")long id){
-        return messageService.getMessage(id);
+    public Message getMessageById(@PathParam("messageId")long id, @Context UriInfo uriInfo){
+        Message message = messageService.getMessage(id);
+        message.addLink(getUriForSelf(uriInfo, message), "self");
+        message.addLink(getUriforProfile(uriInfo, message), "profile");
+
+
+        return message;
+    }
+    private String getURIforComment(UriInfo uriInfo, Message message){
+        URI uri = uriInfo.getBaseUriBuilder()
+                .path(MessageResource.class)
+                .path(MessageResource.class, "getCommentResource")
+                .path(CommentsResource.class)
+                .resolveTemplate("messageId", message.getId())
+                .build();
+        return uri.toString();
     }
 
+    private String getUriforProfile(@Context UriInfo uriInfo, Message message){
+        URI uri= uriInfo.getBaseUriBuilder()
+                .path(ProfileResource.class)
+                .path(message.getAuthor())
+                .build();
+                return uri.toString();
+
+    }
+
+    private String getUriForSelf(@Context UriInfo uriInfo, Message message) {
+        String uri = uriInfo.getBaseUriBuilder()
+                    .path(MessageResource.class)
+                    .path(Long.toString(message.getId()))
+                    .build()
+                    .toString();
+        return uri;
+    }
 
     @Path("/{messageId}/comments")
     public CommentsResource getCommentResource(){

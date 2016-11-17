@@ -1,6 +1,7 @@
 package Services;
 
 import Database.DatabaseClass;
+import Exception.DataNotFoundException;
 import Model.Message;
 
 import java.util.ArrayList;
@@ -25,8 +26,12 @@ public class MessageService {
      return new ArrayList<Message>(messages.values());
     }
 
-    public Message getMessage(long id){
-        return messages.get(id);
+    public Message getMessage(long id) throws DataNotFoundException {
+        Message message = messages.get(id);
+        if(message == null){
+            throw new DataNotFoundException("Message " + id + " not found");
+        }
+        return message;
     }
 
     public List<Message> getAllMessagesByYear(int year){
